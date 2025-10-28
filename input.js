@@ -4,24 +4,18 @@ export default class InputHandler {
         this.targetX = game.width / 2;
 
         this.isDragging = false;
-        this.dragStartX = 0;
-        this.playerStartX = 0;
-        
+        // The following properties are no longer needed for drag move,
+        // but are kept for tap detection logic.
         this.touchStartX = 0;
         this.touchStartY = 0;
         this.tapThreshold = 10; // Max pixels moved to be considered a tap
 
-        // Keyboard controls
+        // Keyboard controls (movement removed)
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'a' || e.key === 'ArrowLeft' || e.key === 'A') {
-                this.targetX -= 30;
-            } else if (e.key === 'd' || e.key === 'ArrowRight' || e.key === 'D') {
-                this.targetX += 30;
-            } else if (e.key === ' ') { // Space bar
+            if (e.key === ' ') { // Space bar
                 e.preventDefault();
                 this.game.player.useBomb();
             }
-             this.clampTargetX();
         });
 
         // Touch and Mouse controls
@@ -30,35 +24,33 @@ export default class InputHandler {
 
         const canvas = document.getElementById('game-canvas');
 
-        const handleDragStart = (e) => {
+        const handleStart = (e) => {
             this.isDragging = true;
-            // The following properties are no longer needed for drag move,
-            // but are kept for tap detection logic.
             this.touchStartX = getEventX(e);
             this.touchStartY = getEventY(e);
 
-            // We need to handle the first move immediately on start
-            // to make the player jump to the cursor.
-            handleDragMove(e);
-
-            // Prevent default behavior for touch events to stop scrolling.
+            // Immediately move to the start position
+            handleMove(e);
+            
             if (e.type === 'touchstart') e.preventDefault();
         };
 
-        const handleDragMove = (e) => {
-            if (this.isDragging) {
-                const canvasRect = canvas.getBoundingClientRect();
-                // Calculate mouse X relative to the canvas element
-                const currentX = getEventX(e) - canvasRect.left;
+        const handleMove = (e) => {
+             // For desktop, we follow the mouse even if not dragging
+            const isMouseEvent = e.type === 'mousemove';
+            if (!this.isDragging && !isMouseEvent) return;
+            
+            const canvasRect = canvas.getBoundingClientRect();
+            // Calculate mouse/touch X relative to the canvas element
+            const currentX = getEventX(e) - canvasRect.left;
 
-                // Directly set the target to the current mouse position within the canvas
-                this.targetX = currentX;
-                
-                this.clampTargetX();
-            }
+            // Directly set the target to the current position within the canvas
+            this.targetX = currentX;
+            
+            this.clampTargetX();
         };
 
-        const handleDragEnd = (e) => {
+        const handleEnd = (e) => {
             if (!this.isDragging) return;
             this.isDragging = false;
 
@@ -73,15 +65,16 @@ export default class InputHandler {
                 this.game.player.useBomb();
             }
         };
-
-        canvas.addEventListener('mousemove', handleDragMove);
+        
+        // Wire up all the events
+        canvas.addEventListener('mousemove', handleMove);
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            handleDragMove(e);
+            handleMove(e);
         }, { passive: false });
 
-        window.addEventListener('mouseup', handleDragEnd);
-        window.addEventListener('touchend', handleDragEnd);
+        window.addEventListener('mouseup', handleEnd);
+        window.addEventListener('touchend', handleEnd);
     }
 
     resize(oldGameWidth) {
